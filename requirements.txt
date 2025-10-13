@@ -1,0 +1,13 @@
+numpy
+pandas
+matplotlib
+scipy
+jinja2
+scipy
+matplotlib
+xarray
+requests
+cartopy
+shapely
+geopandas
+zipfile
