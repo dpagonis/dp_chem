@@ -233,7 +233,13 @@ class timeseries():
             raise ValueError("The boolean array must have the same length as the timeseries data.")
 
         filtered_data = np.where(bool_array, self.data, np.nan)
-        return timeseries(self.t,filtered_data,name=self.name,startstop=self.startstop,stop_times=self.t_stop)
+        if self.spatial:
+            fLAT = np.where(bool_array, self.LAT, np.nan)
+            fLON = np.where(bool_array, self.LON, np.nan)
+            fALT = np.where(bool_array, self.ALT, np.nan)
+        else:
+            fLAT = fLON = fALT = None
+        return timeseries(self.t,filtered_data,name=self.name,startstop=self.startstop,stop_times=self.t_stop,LAT=fLAT,LON=fLON,ALT=fALT)
 
     def set_tz(self,time_zone):
         """
@@ -360,7 +366,7 @@ class timeseries():
                 # Calculate weighted average, weighted by duration, skipping nans
                 valid_data = data_segment[~np.isnan(data_segment)]
                 valid_durations = durations[~np.isnan(data_segment)]
-                if np.isnan(np.sum(valid_durations)):
+                if np.isnan(np.sum(valid_durations)) or np.sum(valid_durations)==0:
                     return np.nan
                 return np.sum(valid_data*valid_durations)/np.sum(valid_durations)
         else:

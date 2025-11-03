@@ -11,6 +11,10 @@ MODULES_TO_IMPORT = [
     "stats",
     "reload",
     "uncertainvalue",
+    "timeseries",
+    "correlation",
+    "binning",
+    "diurnal",
 ]
 # ---------------------
 

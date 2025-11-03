@@ -13,11 +13,6 @@ from .timeseries import timeseries
 EA_CRS = "EPSG:6933"   # Cylindrical Equal‑Area (world)
 WGS_CRS = "EPSG:4326"
 
-# Get the directory where this script is located
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Base directory for gis data, relative to the script's location
-BASE_DIR = os.path.join(SCRIPT_DIR, '..', '..', 'GISData')
 
 class gis:
     def __init__(self, shape_source, field_map=None, crs_fallback=WGS_CRS):
@@ -29,7 +24,7 @@ class gis:
         crs_fallback : str
             Use this if .prj is missing.
         """
-        src = Path(os.path.join(BASE_DIR, shape_source))
+        src = Path(shape_source)
 
 
         # 1. Unzip if needed
@@ -298,7 +293,7 @@ class gis:
         Returns:
             np.ndarray: Object array where each element is an np.ndarray of data values within the corresponding geometry.
                 indices match self.gdf
-        """
+        """        
         if lat_array.shape != lon_array.shape or lat_array.shape != data_array.shape:
             raise ValueError("lat_array, lon_array, and data_array must have the same shape")
 

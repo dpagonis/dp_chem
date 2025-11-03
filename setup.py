@@ -2,11 +2,12 @@ from setuptools import setup, find_packages
 
 setup(
     name="dp_chem",
-    version="1.0",
+    version="1.2",
     packages=find_packages(),
     description="A package for handling chemistry concepts and data",
     author="Demetrios Pagonis",
     author_email="demetriospagonis@weber.edu",
+    include_package_data=True,
     install_requires=[
         'numpy',
         'pandas',
@@ -18,6 +19,5 @@ setup(
         'cartopy',
         'shapely',
         'geopandas',
-        'zipfile',
     ],
 )

@@ -1,8 +1,10 @@
 import requests
-import inspect
+import numpy as np
 import os
 import json
 import pandas as pd
+from datetime import datetime 
+from copy import deepcopy
 
 from .timeseries import timeseries
 
@@ -51,6 +53,8 @@ UTAH_SITES = {
     "Harrisville":"1003",
 }
 
+
+# https://aqs.epa.gov/aqsweb/documents/codetables/methods_all.html
 PARAMETERS = {
     "Mixing Height": "61301",
     "Wind Speed - Scalar":"61101",
@@ -198,7 +202,6 @@ PARAMETERS = {
 
 class epa():
     def __init__(self, **kwargs):
-        self.credentials = self._get_credentials()
         
         # Define defaults
         defaults = {
@@ -207,13 +210,16 @@ class epa():
             "site": UTAH_SITES["Hawthorne"],
             "bdate" : "20240701",
             "edate" : "20240831",
-            "param" : PARAMETERS["Ozone"]
+            "param" : PARAMETERS["Ozone"],
+            "credential_path" : 'EPA_login.txt'
         }
 
         # initialize class with any provided kwargs
         defaults.update(kwargs)
         for key, value in defaults.items():
             setattr(self, key, value)
+
+        self.credentials = self._get_credentials()
 
     def list_parameter_classes(self):
         endpoint = "list/classes"
@@ -327,23 +333,23 @@ class epa():
             print(f"An error occurred: {e}")
 
     def _get_credentials(self):
-        # Find the outermost script (__main__)
-        for frame in inspect.stack():
-            module = inspect.getmodule(frame.frame)
-            if module and module.__name__ == "__main__":
-                parent_script = module.__file__
-                break
-        else:
-            raise RuntimeError("Could not determine the outermost script (__main__).")
+        # # Find the outermost script (__main__)
+        # for frame in inspect.stack():
+        #     module = inspect.getmodule(frame.frame)
+        #     if module and module.__name__ == "__main__":
+        #         parent_script = module.__file__
+        #         break
+        # else:
+        #     raise RuntimeError("Could not determine the outermost script (__main__).")
         
-        parent_dir = os.path.dirname(os.path.abspath(parent_script))
-        credential_path = os.path.join(parent_dir,"EPA_login.txt")
+        # parent_dir = os.path.dirname(os.path.abspath(parent_script))
+        # credential_path = os.path.join(parent_dir,"EPA_login.txt")
 
-        if not os.path.exists(credential_path):
-            raise FileNotFoundError(f"Credential file '{credential_path}' not found. Register your email with the EPA and create the credential file. First line: email, second line: key")
+        # if not os.path.exists(credential_path):
+        #     raise FileNotFoundError(f"Credential file '{credential_path}' not found. Register your email with the EPA and create the credential file. First line: email, second line: key")
         
         try:
-            with open(credential_path, 'r') as file:
+            with open(self.credential_path, 'r') as file:
                 lines = file.readlines()
                 if len(lines) < 2:
                     raise ValueError("Credential file must contain at least two lines: email and key.")
@@ -357,3 +363,40 @@ class epa():
             raise RuntimeError(f"Error reading credentials: {e}")
         return {'email':email,'key':key}
 
+
+
+def epa_timeseries(file,method_code=None):
+    """
+    Systematically load in EPA APS API output files that got saved by `epa` class
+    returns a timeseries object, UTC timestamps
+    """
+
+    df_in = pd.read_csv(file)
+
+    if len(np.unique(np.array(df_in['method_code'].values))) > 1 and method_code is None:
+        raise ValueError("No method_code provided for a file containing multiple methods")
+    if method_code is not None:
+        df =deepcopy(df_in[df_in['method_code']==method_code])
+    else:
+        df = deepcopy(df_in)
+
+    if len(df) < 1:
+        raise ValueError(f"file {file} method={method_code} has length {len(df)}")
+
+    sName = df['parameter'].values[0] + ' ('+df['units_of_measure'].values[0]+')'
+
+    datetime_list = []
+    for index, row in df.iterrows():
+        try:
+            datetime_list.append(pd.to_datetime(f"{row['date_local']} {row['time_local']}", errors='coerce'))
+        except Exception as e:
+            print(f"Error parsing datetime for index {index}: {e}")
+            datetime_list.append(None)
+    df['datetime'] = datetime_list
+    df_sorted = df.sort_values(by=['datetime', 'sample_measurement'], na_position='last')
+    df_final = df_sorted.drop_duplicates(subset='datetime', keep='first')
+
+    t_string_utc = [d+' '+t+'-00:00' for d,t in zip(df_final['date_gmt'],df_final['time_gmt'])]
+    t_utc = [datetime.strptime(dt,"%Y-%m-%d %H:%M%z") for dt in t_string_utc]
+    ts = timeseries(t_utc,df_final['sample_measurement'],name=sName,LAT=df_final['latitude'],LON=df_final['longitude'])
+    return ts

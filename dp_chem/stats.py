@@ -197,7 +197,7 @@ def paired_t_test(l1,l2, confidence=95, show=True):
         print("")
         print(f"-------------t Test (Case 3)-------------")
         print(f"{l1} vs {l2}")
-        print(f"differences: {diff}; {s_d}")
+        print(f"differences: {diff}; {d_bar : .05f} ± {s_d : .05f}")
         print(f"t_calc = {t_calc:.02f}; t_table = {t_tab:.02f}")
         print(f"{'ACCEPT' if H0 else 'REJECT'} null hypothesis")
         print(conclude)
