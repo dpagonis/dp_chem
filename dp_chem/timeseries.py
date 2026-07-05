@@ -26,7 +26,16 @@ class timeseries():
         if len(self.t) == 0:
             return
 
-        if not np.all(np.diff(self.t) > timedelta(0)):
+        # For tz-aware datetimes use POSIX seconds (.timestamp()) so that DST
+        # fall-back transitions are compared in UTC rather than wall-clock time.
+        # np.diff on Python datetime objects with different UTC offsets can
+        # produce incorrect (negative) timedeltas for the ambiguous DST hour.
+        if self.t[0].utcoffset() is not None:
+            t_posix = np.array([dt.timestamp() for dt in self.t])
+            _monotonic = np.all(np.diff(t_posix) > 0)
+        else:
+            _monotonic = np.all(np.diff(self.t) > timedelta(0))
+        if not _monotonic:
             raise ValueError("Timestamps in `t` must be monotonically increasing.")
 
         if len(self.t) != len(self.data):
@@ -229,6 +238,9 @@ class timeseries():
         Raises:
             ValueError: If the boolean array length does not match the timeseries data length.
         """
+        if isinstance(bool_array, timeseries):
+            bool_array = bool_array.data.astype(bool)
+
         if len(bool_array) != len(self.data):
             raise ValueError("The boolean array must have the same length as the timeseries data.")
 
@@ -295,6 +307,9 @@ class timeseries():
             t1 = t1.replace(tzinfo=self.tzinfo)
         if t2.tzinfo is None and self.tzinfo is not None:
             t2 = t2.replace(tzinfo=self.tzinfo)
+
+        if ylabel is None and self.name is not None:
+            ylabel = self.name
 
         plt.plot(self.t[(self.t>=t1) & (self.t<=t2)], self.data[(self.t>=t1) & (self.t<=t2)], label=self.name)
         if isinstance(ts2,timeseries):
