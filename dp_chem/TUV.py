@@ -1,9 +1,15 @@
 import pandas as pd
+import numpy as np
 import requests
 from io import StringIO
 import re
+from datetime import datetime, timezone
+from dp_chem.gentools import sza as calc_sza
+from dp_chem.locations import COORDINATES
+from pathlib import Path
 
-def ActinicFlux(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300, groundLevel_km = 0, albedo = 0.1):
+
+def ActinicFlux(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300., groundLevel_km = 0, albedo = 0.1):
     """
     Fetches UV radiation data from the NCAR TUV calculator and returns it as a DataFrame.
     
@@ -16,11 +22,12 @@ def ActinicFlux(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300, g
         Longitude for the calculation. Should be a float between -180 and 180. East is positive.
         
     date : str
-        Date for the calculation in 'YYYYMMDD' format.
+        Date for the calculation in 'YYYYMMDD' format or a datetime object
         
     timeStamp : str
         Time for the calculation in 'HH:MM:SS' format.
         timeStamp must be UTC
+        if passing date a datetime object, this parameter is ignored
         
     kmAltitude : float
         Altitude in kilometers for the measurement point. Should be a non-negative float.
@@ -51,6 +58,15 @@ def ActinicFlux(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300, g
     - The function assumes that certain other parameters (e.g., 'wStart', 'ozone', etc.) are set to default values.
     - Ensure that you have access to the internet and that the NCAR TUV calculator is online and operational.
     """
+
+    if isinstance(date,datetime):
+        if date.tzinfo is None: #assume UTC when tz-naive
+            dt_utc = date.replace(tzinfo=timezone.utc)
+        else:
+            dt_utc = date.astimezone(timezone.utc)
+
+        date = dt_utc.strftime("%Y%m%d")
+        timeStamp = dt_utc.strftime("%H:%M:%S")
     
     base_url = "https://www.acom.ucar.edu/cgi-bin/acom/TUV/V5.3/tuv"
     
@@ -105,14 +121,23 @@ def ActinicFlux(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300, g
         
         column_names = ["LOWER WVL", "UPPER WVL", "DIRECT", "DIFFUSE DOWN", "DIFFUSE UP", "TOTAL"]
         
-        df = pd.read_csv(StringIO(data_str), header=None, sep='\s+', names=column_names)
+        df = pd.read_csv(StringIO(data_str), header=None, sep=r'\s+', names=column_names)
         
         return df
     else:
         print(f"Failed to get data: {response.status_code}")
         return None
     
-def jValues(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300, groundLevel_km = 0, albedo = 0.1):
+def jValues(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300., groundLevel_km = 0., albedo = 0.1):
+
+    if isinstance(date,datetime):
+        if date.tzinfo is None: #assume UTC when tz-naive
+            dt_utc = date.replace(tzinfo=timezone.utc)
+        else:
+            dt_utc = date.astimezone(timezone.utc)
+
+        date = dt_utc.strftime("%Y%m%d")
+        timeStamp = dt_utc.strftime("%H:%M:%S")
 
     base_url = "https://www.acom.ucar.edu/cgi-bin/acom/TUV/V5.3/tuv"
     
@@ -195,7 +220,7 @@ def jValues(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300, groun
         print(f"Failed to get data: {response.status_code}")
         return None
     
-def jNO2(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300, groundLevel_km = 0, albedo = 0.1):
+def jNO2(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300, groundLevel_km = 0.0, albedo = 0.1):
     df = jValues(latitude, longitude, date, timeStamp, kmAltitude, ozone, groundLevel_km, albedo)
     if df is not None:
         try:
@@ -213,6 +238,68 @@ def jNO2(latitude, longitude, date, timeStamp, kmAltitude, ozone = 300, groundLe
         return None
 
 
+def lookup_jNO2(dt: datetime|None = None, sza : float|None = None, location:str="SLC"):
+    """
+        if sza is provided, that is used. otherwise sza is calculated from dt and location
+    """
+
+    if sza is None:
+        if dt is not None:
+            LAT, LON = COORDINATES[location]
+            sza = calc_sza(LAT,LON,dt)
+        else:
+            raise ValueError("in lookup_jNO2 sza and dt cannot both be None")
+
+    file = _TUV_lookup_path(location) 
+
+    if sza >= 90:
+        return 0
+    if sza < 0:
+        raise ValueError("lookup_jNO2: cannot have sza below zero")
+
+    sza_ref, jNO2_ref = _jNO2_lookup_arrays(location)
+
+    jNO2 = np.interp(sza, sza_ref, jNO2_ref)
+    
+    return jNO2
+    
+
+
+
+
+def _jNO2_lookup_arrays(location):
+    file_path = _TUV_lookup_path(location)
+    df = pd.read_csv(file_path, skiprows=5, skipfooter=1, header=None, names=['sza','jNO2'], sep=r'\s+', skipinitialspace=True, engine='python')
+    sza = np.array(df['sza'])
+    jNO2 = np.array(df['jNO2'])
+
+    #pre-sort them for np.interp compatibility
+    sort_indices = np.argsort(sza)
+    sza = sza[sort_indices]
+    jNO2 = jNO2[sort_indices]
+
+    return sza, jNO2
+
+def _TUV_lookup_path(location):
+    this_file_dir = Path(__file__).resolve().parent
+    lookup_path = Path.joinpath(this_file_dir,'tables/TUV/jNO2/',f'{location}.txt')
+    if Path.exists(lookup_path):
+        return lookup_path
+    else:
+        raise ValueError(f"No TUV file for {location}. Did not find {lookup_path}")
+    
+
 if __name__ == '__main__':
-    j = jNO2(latitude=0, longitude=0, date='20150630', timeStamp='12:00:00', kmAltitude=0)
-    print(j)
+    
+    from zoneinfo import ZoneInfo
+
+    LAT, LON = COORDINATES['SLC']
+    dt = datetime.now(tz=ZoneInfo("America/Denver"))
+
+    j = jNO2(latitude=LAT, longitude=LON, date=dt, timeStamp=dt, kmAltitude=1.317, groundLevel_km=0)
+    print(f"API call: {j}")
+
+    sza = calc_sza(LAT,LON,dt)
+
+    jNO2_lookup = lookup_jNO2(sza=sza,location="SLC")
+    print(f"lookup: {jNO2_lookup :.06f}")
