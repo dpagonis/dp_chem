@@ -71,12 +71,32 @@ class units:
 
 
     def __init__(self, units_str):
-        self.units_str = units_str
+        self.units_str = self._simplify_units_str(units_str)
         self.to_si_factor = 1
         self.unit_coefs = self._parse_units()
         self.units_str_si = self._construct_si_units_str()
         self.unit_type = self._determine_unit_type()
         self.tex = self._format_tex()
+        self.html = self._format_html()
+        self.units_str_inverse = self._construct_inverse_units_str()
+
+    def _simplify_units_str(self, units_str):
+        units_dict = {}
+        
+        for unit_exp in units_str.split():
+            match = re.match(r'([a-zA-Zµ]+)([-0-9]*)', unit_exp)
+            if match:
+                unit, exp = match.groups()
+                exponent = int(exp) if exp else 1
+                units_dict[unit] = units_dict.get(unit, 0) + exponent
+        
+        simplified_parts = []
+        for unit, exponent in sorted(units_dict.items(), key=lambda x: (x[1] < 0, x[0])):
+            if exponent == 0:
+                continue
+            simplified_parts.append(f"{unit}{exponent if exponent != 1 else ''}")
+        
+        return ' '.join(simplified_parts)
 
     def _parse_units(self, str_to_parse=None):
         str_to_parse = self.units_str if str_to_parse is None else str_to_parse    
@@ -141,7 +161,22 @@ class units:
         return unit_exponents
 
 
+    def _construct_inverse_units_str(self):
+        inverse_unit_str_parts = []
+        for u in self.units_str.split(' '):
+            pattern = r'([a-zA-Z]+)(-?\d+)?'
+            match = re.match(pattern, u)
+            if match:
+                unit = match.group(1)
+                power = match.group(2)
 
+                if power:
+                    power = int(power)
+                    inverse_power = -power
+                    inverse_unit_str_parts.append(f"{unit}{inverse_power if inverse_power != 1 else ''}")
+                else:
+                    inverse_unit_str_parts.append(f"{unit}-1")
+        return self._simplify_units_str(' '.join(inverse_unit_str_parts))
 
     def _construct_si_units_str(self):
         units_str_si_parts = []
@@ -171,6 +206,43 @@ class units:
 
         return factor
     
+    def __repr__(self):
+        return f"{self.__str__()} ({self.__class__.__name__} object)"
+    
+    def _format_html(self):
+        numerator_units = []
+        denom_units = []
+        for u in self.units_str.split(' '):
+            pattern = r'([a-zA-Z]+)(-?\d+)?'
+            match = re.match(pattern, u)
+            if match:
+                unit = match.group(1)
+                power = match.group(2)
+
+                if power:
+                    power = int(power)
+                    
+                    if abs(power) > 1:
+                        unit = unit + '<sup>' + str(abs(power)) + '</sup>'
+                    
+                    if power < 0:
+                        denom_units.append(unit)
+                    else:
+                        numerator_units.append(unit)
+                else:
+                    numerator_units.append(unit)
+
+        # Handle the case where there's no denominator
+        if denom_units:
+            if len(denom_units) == 1:
+                return '·'.join(numerator_units) + '/' + denom_units[0]
+            else:
+                return '·'.join(numerator_units) + '/(' + '·'.join(denom_units) + ')'
+        else:
+            return '·'.join(numerator_units)
+
+        return ''
+    
     def _format_tex(self):
         numerator_units = []
         denom_units = []
@@ -199,17 +271,18 @@ class units:
             return '\\frac{' + '\\,'.join(numerator_units) + '}{' + '\\,'.join(denom_units) + '}'
         else:
             return '\\,'.join(numerator_units)
-
-        return ''
     
 
 def main():
-    test_unit = units("mi3 day-2 s-1")
+    test_unit = units("mi3 day-2 s-1 kg kg-1")
     print(test_unit.unit_coefs)
+    print(test_unit.units_str)
     print(test_unit.units_str_si)
     print(test_unit.unit_type)
     print(test_unit.to_si_factor)
     print(test_unit.tex)
+    print(test_unit.html)
+    print(test_unit.units_str_inverse)
 
 if __name__ == "__main__":
     main()

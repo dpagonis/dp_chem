@@ -1,5 +1,6 @@
 import math
 import random
+import re
 import warnings
 from decimal import Decimal, ROUND_HALF_UP, getcontext
 
@@ -20,7 +21,9 @@ class sigfig:
       # create a string representation of the float with the provided sig figs
       value_str = str(value)
     elif isinstance(value, str):
-      value_str = value
+      value_str, units_str_parsed = self._parse_value_str(value)
+      if not units_str_parsed:
+        units_str_parsed = units_str
     else:
       raise TypeError("value input must be a string, int, or float")
 
@@ -30,7 +33,7 @@ class sigfig:
     if sig_figs is not None and last_decimal_place is not None:
         raise ValueError("Cannot set both sig_figs and last_decimal_place.")
     
-    self.units = units_class(units_str)
+    self.units = units_class(units_str_parsed if 'units_str_parsed' in locals() else units_str)
 
     if sig_figs is None and last_decimal_place is None:
         self.sig_figs = self._find_first_decimal_place(self.value_str)-self._find_last_decimal_place(self.value_str) +1
@@ -48,7 +51,16 @@ class sigfig:
       self.html = f'{base} x 10<sup>{exp}</sup>'
 
     self.tex = self._generate_tex_string()
-   
+  
+  def _parse_value_str(self, value):
+    # This method should parse the value string and extract the numeric part and the units part
+    match = re.match(r'([0-9.eE+-]+)\s*(.+)?', value)
+    if match:
+      value_str = match.group(1)
+      units_str = match.group(2).strip() if match.group(2) else ""
+      return value_str, units_str
+    return value, ""
+
   def scientific_notation(self):
     prec = self.sig_figs if self._check_rounded_exponent_increase(self.sig_figs-1) else self.sig_figs-1
     prec = 0 if prec < 0 else prec
@@ -297,62 +309,72 @@ class sigfig:
       #if it's a decimal do the easy formatting
       else:
         formatted = "{:.{}f}".format(self.value, -1*self.last_decimal_place)
-    return formatted
+    return formatted+' '+self.units.units_str
   
   def __repr__(self):
     return f"{self.__str__()} ({self.__class__.__name__} object)"
   
   def __add__(self, other):
     if isinstance(other, sigfig):
+      if other.units.units_str == self.units.units_str:
+        result_units_str = self.units.units_str
+      else:
+        result_units_str = '' # eventually handle conversion within addition
+
       result = self.value + other.value
-      return sigfig(str(result), last_decimal_place=max(self.last_decimal_place, other.last_decimal_place))
+      return sigfig(str(result), last_decimal_place=max(self.last_decimal_place, other.last_decimal_place), units_str=result_units_str)
     else:
       result = self.value + other
-      return sigfig(str(result),last_decimal_place=self.last_decimal_place)
+      return sigfig(str(result),last_decimal_place=self.last_decimal_place,units_str=self.units.units_str)
 
   def __sub__(self, other):
     if isinstance(other, sigfig):
+      if other.units.units_str == self.units.units_str:
+        result_units_str = self.units.units_str
+      else:
+        result_units_str = '' # eventually handle conversion within subtraction
+
       result = self.value - other.value
-      return sigfig(str(result), last_decimal_place=max(self.last_decimal_place, other.last_decimal_place))
+      return sigfig(str(result), last_decimal_place=max(self.last_decimal_place, other.last_decimal_place), units_str=result_units_str)
     else:
       result = self.value - other
-      return sigfig(str(result),last_decimal_place=self.last_decimal_place)
+      return sigfig(str(result),last_decimal_place=self.last_decimal_place, units_str=self.units.units_str)
   
   def __radd__(self, other):
     # Assuming other is a float
     result = other + self.value
-    return sigfig(str(result),last_decimal_place=self.last_decimal_place)
+    return sigfig(str(result),last_decimal_place=self.last_decimal_place, units_str=self.units.units_str)
 
   def __rsub__(self, other):
     # Assuming other is a float
     result = other - self.value
-    return sigfig(str(result),last_decimal_place=self.last_decimal_place)
+    return sigfig(str(result),last_decimal_place=self.last_decimal_place, units_str=self.units.units_str)
   
   def __mul__(self, other):
     if isinstance(other, sigfig):
       result = self.value * other.value
-      return sigfig(str(result), sig_figs=min(self.sig_figs, other.sig_figs))#,units_str=f'{self.units_str} {other.units_str}')
+      return sigfig(str(result), sig_figs=min(self.sig_figs, other.sig_figs),units_str=f'{self.units.units_str} {other.units.units_str}')
     else:
       result = self.value * other
-      return sigfig(str(result),sig_figs=self.sig_figs)
+      return sigfig(str(result),sig_figs=self.sig_figs, units_str=self.units.units_str)
     
   def __rmul__(self, other):
     # Assuming other is a basic numeric type
     result = other * self.value
-    return sigfig(str(result), sig_figs=self.sig_figs)
+    return sigfig(str(result), sig_figs=self.sig_figs, units_str=self.units.units_str)
 
   def __truediv__(self, other):
     if isinstance(other, sigfig):
       result = self.value / other.value
-      return sigfig(str(result), sig_figs=min(self.sig_figs, other.sig_figs))
+      return sigfig(str(result), sig_figs=min(self.sig_figs, other.sig_figs), units_str=f'{self.units.units_str} {other.units.units_str_inverse}')
     else:
       result = self.value / other
-      return sigfig(str(result),sig_figs=self.sig_figs)
+      return sigfig(str(result),sig_figs=self.sig_figs, units_str=self.units.units_str)
     
   def __rtruediv__(self, other):
     # Assuming other is a basic numeric type
     result = other / self.value
-    return sigfig(str(result), sig_figs=self.sig_figs)
+    return sigfig(str(result), sig_figs=self.sig_figs, units_str=self.units.units_str_inverse)
     
   def __pow__(self, other):
     if isinstance(other, sigfig):

@@ -148,7 +148,7 @@ class molecule:
                 # Add the molecular weight of the subgroup, multiplied by its count, to the total molecular weight
                 subgroup_mw = subgroup_mol.molecular_weight
                 if subgroup_mw.last_decimal_place < -6:
-                    subgroup_mw = sf(subgroup_mw.scientific_notation(), last_decimal_place=-6)
+                    subgroup_mw = sf(subgroup_mw.scientific_notation(), last_decimal_place=-6, units_str="g mol-1")
                 molecular_weight += subgroup_mw * subgroup_count
 
                 # Update the formula to continue with the rest of it
@@ -160,11 +160,11 @@ class molecule:
                 if match:
                     element = match.group(1)
                     count = match.group(2)
-                    atomic_mass = sf(str(periodictable.property(element, prop='mass')))
+                    atomic_mass = sf(str(periodictable.property(element, prop='mass')), units_str="g mol-1")
                     if count:
                         atomic_mass *= int(count)
                     if atomic_mass.last_decimal_place < -6:
-                        atomic_mass = sf(atomic_mass.scientific_notation(),last_decimal_place=-6)
+                        atomic_mass = sf(atomic_mass.scientific_notation(),last_decimal_place=-6, units_str="g mol-1")
                     molecular_weight += atomic_mass
                     formula = formula[match.end():]
 
@@ -202,6 +202,11 @@ class molecule:
         simple_html_string = re.sub(r'([+-]+)', r'<sup>\1</sup>', simple_html_string)
 
         return simple_html_string
+    
+    @staticmethod
+    def MW(formula_str):
+        temp_molec = molecule(formula_str)
+        return temp_molec.molecular_weight
     
     def add(self, addstr):
         # Initialize a temporary molecule with addstr
@@ -281,13 +286,3 @@ class molecule:
     
     def __repr__(self):
         return f"{self.__str__()} ({self.__class__.__name__} object)"
-        
-def main():
-    test = molecule('H2O')
-    print(test, test.charge)
-    new = test.subtract('H+')
-    print(new, new.charge)
-
-
-if __name__ == '__main__':
-    main()
