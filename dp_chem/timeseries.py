@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dateutil import parser
+from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
-import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import warnings
@@ -255,7 +255,7 @@ class timeseries():
 
     def set_tz(self,time_zone):
         """
-        Set the time zone of the timeseries directly. Use pytz codes
+        Set the time zone of the timeseries directly. Use zoneinfo codes
         "America/Denver" for MT; "MST"; "UTC"; etc
         """
 
@@ -263,14 +263,14 @@ class timeseries():
             return #nothing to modify
 
         if self.tzinfo is None: #for naive timeseries, force tzinfo without any conversion
-            self.tzinfo = pytz.timezone(time_zone)
+            self.tzinfo = ZoneInfo(time_zone)
             self.t = np.array([dt.replace(tzinfo=self.tzinfo) for dt in self.t])
             if self.t_stop is not None:
                 self.t_stop = np.array([dt.astimezone(self.tzinfo) for dt in self.t_stop])
             self.start = self.start.replace(tzinfo=self.tzinfo)
             self.stop = self.stop.replace(tzinfo=self.tzinfo)
         else: #for aware timeseries, do the conversion
-            self.tzinfo = pytz.timezone(time_zone)
+            self.tzinfo = ZoneInfo(time_zone)
             self.t = np.array([dt.astimezone(self.tzinfo) for dt in self.t])
             if self.t_stop is not None:
                 self.t_stop = np.array([dt.astimezone(self.tzinfo) for dt in self.t_stop])
@@ -841,7 +841,7 @@ if __name__ == '__main__':
 
     # ts_null = timeseries([],[])
 
-    tz = pytz.timezone('MST')
+    tz = ZoneInfo('MST')
     now=datetime.now()
     t1 = [now.astimezone(tz) + timedelta(minutes=i*17) for i in range(240) ]
     data1 = [t.minute**0.5 for t in t1]

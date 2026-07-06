@@ -132,6 +132,7 @@ class units:
                 # If no match was found, try to split into a prefix and a base unit and try again
                 if not unit_found and len(unit) > 1:
                     for category, units in self.unit_categories.items():
+                        
                         for base_unit in units:
                             if unit[1:] == base_unit:
                                 unit_found = True
@@ -145,18 +146,18 @@ class units:
                     # Check for exponent
                     exponent = int(exp) if exp else 1
                     
-                    if category in unit_exponents:  # if category is a key in unit_exponents
-                        unit_exponents[category] += exponent
+                    if category in unit_exponents:  #type:ignore # if category is a key in unit_exponents
+                        unit_exponents[category] += exponent            #type:ignore
                     else:  # recursively parse units string from categories_si
-                        si_unit_str = self.categories_si[category]
+                        si_unit_str = self.categories_si[category]      #type:ignore
                         si_unit_str = f"{si_unit_str}"
                         si_unit_exponents = self._parse_units(si_unit_str)
                         for si_category, si_exponent in si_unit_exponents.items():
                             unit_exponents[si_category] += si_exponent * exponent
 
                     # Adjust self.to_si_factor with conversion factor and prefix
-                    conv_factor = self.to_si_factors.get(base_unit, 1)
-                    prefix_factor = self.si_prefixes.get(prefix, 1)
+                    conv_factor = self.to_si_factors.get(base_unit, 1)  #type:ignore
+                    prefix_factor = self.si_prefixes.get(prefix, 1)     #type:ignore
                     self.to_si_factor *= (conv_factor * prefix_factor) ** exponent
         return unit_exponents
 

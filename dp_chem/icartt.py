@@ -1,6 +1,5 @@
 import re
-from datetime import datetime, timedelta
-import pytz
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 import warnings
 
@@ -39,9 +38,9 @@ def dt_sec_since_midnight(dt : datetime):
     for naive datetime objects, assumed timezone is UTC"""
 
     if dt.tzinfo is None:
-        dt_utc = dt.replace(tzinfo=pytz.utc)
+        dt_utc = dt.replace(tzinfo=timezone.utc)
     else:
-        dt_utc = dt.astimezone(pytz.utc)
+        dt_utc = dt.astimezone(timezone.utc)
     s = dt_utc.hour * 3600 + dt_utc.minute * 60 + dt_utc.second + dt_utc.microsecond * 1e-6
     return s
 
@@ -59,12 +58,12 @@ def load(filepath):
         # Read the data into a DataFrame (note skiprows is zero since we're doing open & readline)
         data = pd.read_csv(file, skiprows=0)
         
-        utc = pytz.utc
+        utc = timezone.utc
         
         # Convert the icartt time column to UTC datetime objects
         # Some people don't follow the icartt standard and instead give iso strings of the UTC timestamp. we handle that, but whine about it
 
-        utc = pytz.utc
+        utc = timezone.utc
         try:
             data['Time_Start'] = data.iloc[:, 0].apply(lambda x: utc.localize(start_date + timedelta(seconds=float(x))))
         except:

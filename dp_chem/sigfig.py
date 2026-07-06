@@ -8,7 +8,7 @@ from .units import units as units_class
 
 class sigfig:
 
-  def __init__(self, value, sig_figs=None, last_decimal_place=None, units_str=""):
+  def __init__(self, value, sig_figs:int|None =None, last_decimal_place:int|None=None, units_str=""):
     
     # Accept strings, ints, and floats. ints are safely converted to strings.
     # floats must be accompanied by an explicit sig_figs value because float
@@ -30,20 +30,27 @@ class sigfig:
     self.value_str = value_str
     self.value = float(self.value_str)
 
-    if sig_figs is not None and last_decimal_place is not None:
-        raise ValueError("Cannot set both sig_figs and last_decimal_place.")
+    
     
     self.units = units_class(units_str_parsed if 'units_str_parsed' in locals() else units_str)
 
-    if sig_figs is None and last_decimal_place is None:
+    if sig_figs is not None and last_decimal_place is not None:
+        raise ValueError("Cannot set both sig_figs and last_decimal_place.")
+    
+    elif sig_figs is None and last_decimal_place is None:
         self.sig_figs = self._find_first_decimal_place(self.value_str)-self._find_last_decimal_place(self.value_str) +1
         self.last_decimal_place = self._find_last_decimal_place(self.value_str)
+    
     elif sig_figs is not None:
         self.sig_figs = sig_figs
         self.last_decimal_place = self._find_first_decimal_place(self.value_str)-self.sig_figs +1
-    else:
+    
+    elif last_decimal_place is not None:
         self.last_decimal_place = last_decimal_place
         self.sig_figs = self._find_first_decimal_place(self.value_str) - self.last_decimal_place +1
+    
+    else:
+        raise TypeError(f"bad sig_figs and last_decmial_place values: {sig_figs}, {last_decimal_place}")
 
     self.html = self.as_num()
     if 'e' in self.html:
@@ -222,23 +229,26 @@ class sigfig:
     rounded_number = num_to_round.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
     return rounded_number * Decimal(factor)
   
-  def _find_last_decimal_place(self, value_str):
-    number_str = value_str
-    if 'e' in value_str:
-        exponent = int(number_str.split('e')[1])
-        number_str = number_str.split('e')[0]
+  def _find_last_decimal_place(self, value_str) -> int:
     
-    if '.' in number_str:
-        decimal_place = -1*len(number_str.split('.')[1])
-    else:
-        decimal_place = len(number_str)-len(number_str.rstrip('0'))
-        
-    if 'e' in value_str:
-        return exponent + decimal_place
-    else:
+    def _get_decimal_place(number_str) -> int:
+        if '.' in number_str:
+            decimal_place = -1*len(number_str.split('.')[1])
+        else:
+            decimal_place = len(number_str)-len(number_str.rstrip('0'))
         return decimal_place
+    
+    if 'e' in value_str:
+        exponent = int(value_str.split('e')[1])
+        number_str = value_str.split('e')[0]
+        decimal_place = _get_decimal_place(number_str)
+        return int(exponent + decimal_place)
+    else:
+        decimal_place = _get_decimal_place(value_str)
+        return int(decimal_place)
+        
   
-  def _find_first_decimal_place(self, number_str):
+  def _find_first_decimal_place(self, number_str) -> int:
     #cases are 
     #sci notation (split out number from exponent, do recursion)
     #normal with decimal point greater than 1
