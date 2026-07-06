@@ -16,7 +16,9 @@ from .gis import gis
 from .camxdata import camxdata
 from .epa import epa
 
-MW = molecule.MW
+#expose useful functions
+from .gentools import MW
+from .gentools import convert
 
-# dynamic reload
-from .reload import reload as reload
+#expose dynamic reload
+from .reload import reload
