@@ -5,6 +5,7 @@ import json
 import pandas as pd
 from datetime import datetime 
 from copy import deepcopy
+from pathlib import Path
 
 from .timeseries import timeseries
 
@@ -211,7 +212,7 @@ class epa():
             "bdate" : "20240701",
             "edate" : "20240831",
             "param" : PARAMETERS["Ozone"],
-            "credential_path" : 'EPA_login.txt'
+            "credential_path" : None
         }
 
         # initialize class with any provided kwargs
@@ -348,19 +349,46 @@ class epa():
         # if not os.path.exists(credential_path):
         #     raise FileNotFoundError(f"Credential file '{credential_path}' not found. Register your email with the EPA and create the credential file. First line: email, second line: key")
         
-        try:
-            with open(self.credential_path, 'r') as file:
-                lines = file.readlines()
-                if len(lines) < 2:
-                    raise ValueError("Credential file must contain at least two lines: email and key.")
+        email = None
+        key = None
+        
+        if self.credential_path is not None:
+            try:
+                with open(self.credential_path, 'r') as file:
+                    lines = file.readlines()
+                    if len(lines) < 2:
+                        raise ValueError("Credential file must contain at least two lines: email and key.")
 
-                email = lines[0].strip()
-                key = lines[1].strip()
-                # Validate the email format (basic validation)
-                if "@" not in email or "." not in email.split("@")[-1]:
-                    raise ValueError(f"Invalid email format in the credential file: {email}")
-        except Exception as e:
-            raise RuntimeError(f"Error reading credentials: {e}")
+                    email = lines[0].strip()
+                    key = lines[1].strip()
+                    # Validate the email format (basic validation)
+                    if "@" not in email or "." not in email.split("@")[-1]:
+                        raise ValueError(f"Invalid email format in the credential file: {email}")
+            except Exception as e:
+                raise RuntimeError(f"Error reading credentials: {e}")
+        
+        else:
+            if Path('EPA_login.txt').exists():
+                with open('EPA_login.txt', 'r') as file:
+                    lines = file.readlines()
+                    email = lines[0].strip()
+                    key = lines[1].strip()
+            else:
+                try:
+                    dp_chem_config = Path.joinpath(Path.home(),'.dp_chem')
+                    if dp_chem_config.exists():
+                        with open(dp_chem_config, 'r') as file:
+                            config = json.load(file)
+                            email = config.get("epa_login")
+                            key = config.get("epa_pass")
+
+                            print(f'used .dp_chem credentials: email {email}, key {key}')
+                except Exception as e:
+                    raise RuntimeError(e)
+                
+        if email is None or key is None:
+            raise ValueError(f'Bad credentials: email {email} {type(email)}, key {key} {type(key)}')
+        
         return {'email':email,'key':key}
 
 
