@@ -12,7 +12,7 @@ class uncertainvalue:
                 a=np.array(mean)
                 mean=a.mean()
                 stdev=a.std(ddof=1)
-                n=len(a)
+                n=int(len(a))
         else:
             if not isinstance(stdev, sf) and stdev <= 0:
                 raise TypeError("Expected stdev to be a positive number")
@@ -48,7 +48,7 @@ class uncertainvalue:
             confidence_level /= 100
         elif confidence_level < 0 or confidence_level > 1:
             raise TypeError("Expected a confidence_level value between 0 and 1")
-        dof = self.n - 1 if self.n > 1 else 1
+        dof = self.n - 1
         t = stats.t.ppf((1 + confidence_level) / 2, dof)
         ci = sf(str(t*self.stdev.value/(self.n**0.5)),sig_figs=1)
         if ci.scientific_notation().split('e')[0] == '1':

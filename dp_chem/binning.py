@@ -21,7 +21,17 @@ class binning:
         """
         # Ensure both inputs are timeseries and merged
         if not isinstance(reference_ts, timeseries) or not isinstance(target_ts, timeseries):
-            raise TypeError("Both inputs must be instances of the `timeseries` class.")
+            if isinstance(reference_ts, np.ndarray) and isinstance(target_ts, np.ndarray):
+                if len(reference_ts) != len(target_ts):
+                    raise ValueError("Both numpy arrays must have the same length.")
+                warnings.warn("Both inputs were numpy arrays instead of timeseries. Continuing with binning, but consider converting to timeseries for full functionality.", UserWarning)
+                from datetime import datetime, timedelta
+                dtime = np.arange(len(reference_ts))  # Pretend 1Hz time data
+                time = np.array([datetime(1,1,1) + timedelta(seconds=int(dt)) for dt in dtime])
+                reference_ts = timeseries(time, reference_ts, name="Reference")
+                target_ts = timeseries(time, target_ts, name="Target")
+            else:
+                raise TypeError("Both inputs must be instances of the `timeseries` class or numpy arrays of the same length.")
         if not reference_ts.is_merged(target_ts):
             raise ValueError("The time series must be merged.")
 

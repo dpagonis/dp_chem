@@ -402,11 +402,11 @@ def epa_timeseries(file,method_code=None):
     df_in = pd.read_csv(file)
 
     if len(np.unique(np.array(df_in['method_code'].values))) > 1 and method_code is None:
-        raise ValueError("No method_code provided for a file containing multiple methods")
+        df = _parse_multimethod_epa_timeseries(df_in)
     if method_code is not None:
         df =deepcopy(df_in[df_in['method_code']==method_code])
     else:
-        df = deepcopy(df_in)
+        df = deepcopy(df_in) # only one method code; can fly blind and trust it
 
     if len(df) < 1:
         raise ValueError(f"file {file} method={method_code} has length {len(df)}")
@@ -428,3 +428,43 @@ def epa_timeseries(file,method_code=None):
     t_utc = [datetime.strptime(dt,"%Y-%m-%d %H:%M%z") for dt in t_string_utc]
     ts = timeseries(t_utc,df_final['sample_measurement'],name=sName,LAT=df_final['latitude'],LON=df_final['longitude'])
     return ts
+
+def _parse_multimethod_epa_timeseries(df_in):
+
+    hourly_methods = df_in[df_in['sample_duration'] == "1 HOUR"]['method_code'].unique()
+    
+    if len(hourly_methods) == 0:
+        
+        if np.unique(df_in['sample_duration'].values) == ['24 HOUR']:
+            daily_methods = df_in[df_in['sample_duration'] == "24 HOUR"]['method_code'].unique()
+            df_filtered = df_in[df_in['method_code'].isin(hourly_methods)]
+        
+        else:
+            raise ValueError(f"File has no hourly data and has unsupported sample durations. Contact the developer. Sample durations: {np.unique(df_in['sample_duration'].values)}")
+    
+    else: # we have hourly data, grab it and use it
+        df_filtered = df_in[df_in['method_code'].isin(hourly_methods)]
+    
+    
+    datetime_list = []
+    for index, row in df_filtered.iterrows():
+        try:
+            datetime_list.append(pd.to_datetime(f"{row['date_local']} {row['time_local']}", errors='coerce'))
+        except Exception as e:
+            print(f"Error parsing datetime for index {index}: {e}")
+            datetime_list.append(None)
+    
+    # Group by 'datetime' and average the 'sample_measurement' for duplicate timestamps
+    df = deepcopy(df_filtered)
+    df['datetime'] = datetime_list
+    df_sorted = df.sort_values(by=['datetime', 'sample_measurement'], na_position='last')
+    df_grouped = df_sorted.groupby('datetime', as_index=False).agg({
+        'sample_measurement': lambda x: np.nanmean(x) if not x.isna().all() else np.nan,
+        'latitude': 'first',  # Keep the first latitude value
+        'longitude': 'first',  # Keep the first longitude value
+        'parameter': 'first',  # Keep the first parameter value
+        'units_of_measure': 'first'  # Keep the first units of measure value
+    })
+    df_final = df_grouped
+
+    return deepcopy(df_final)
