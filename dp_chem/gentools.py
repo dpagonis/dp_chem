@@ -1,10 +1,13 @@
 import inspect
 import os
-from dp_chem import molecule
+import numpy as np
 import getpass
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
+
+from dp_chem import molecule
 from dp_chem.units import units
+from dp_chem import timeseries
 
 
 EARTHRADIUS_m = 6.371e6
@@ -47,12 +50,12 @@ def save_fig(fig, fname=None, dpi=200, annotate=True, fontsize=8):
         except Exception:
             script_name = "unknown"
 
-        date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        date_str = datetime.now().strftime("%Y-%m-%d %H:%M")
         annotation = f"{user} | {date_str} | {script_name}"
 
         # Add annotation in the lower-right corner of the figure
         # Use fig.text so it appears on all subplots and is saved with the figure.
-        fig.text(0.99, 0.99, annotation, ha="right", va="top",
+        fig.text(0.99, 0, annotation, ha="right", va="bottom",
                  fontsize=fontsize, alpha=0.5)
 
     # save
@@ -111,7 +114,48 @@ def distance(ll_tuple1,ll_tuple2):
     d_m = d_r * EARTHRADIUS_m
     return d_m
 
+def mda8(ts):
+    """
+    calculates maximum daily 8-hour average for every day in a timeseries object
+    returns a timeseries object with mda8 values
+    """
 
+    # Storage for unique days and their max 8-hour
+    unique_days = []
+    max_8h_values = []
+
+    # Loop through unique days
+    for day in np.unique([t.date() for t in ts.t]):  
+        daily_mask = np.array([t.date() == day for t in ts.t])  # Mask for the day's data
+        daily_times = ts.t[daily_mask]
+        daily_values = ts.data[daily_mask]
+        
+        max_8h_avg = None
+        
+        
+        # Slide an 8-hour window across the day's data
+        for i, center_time in enumerate(daily_times):
+            start_time = center_time + timedelta(hours=-4)
+            end_time = center_time + timedelta(hours=4)
+            mask = (daily_times >= start_time) & (daily_times < end_time)
+            
+            if np.sum(mask) > 0:  # Ensure there's data in the window
+                avg_8h = np.nanmean(daily_values[mask])
+                if max_8h_avg is None or avg_8h > max_8h_avg:
+                    max_8h_avg = avg_8h
+                    dt_day = center_time.date()
+                    dt = datetime(dt_day.year,dt_day.month,dt_day.day,0,0,0,tzinfo=center_time.tzinfo)
+
+        # Store results
+        unique_days.append(dt)
+        max_8h_values.append(max_8h_avg)
+
+
+    unique_days = np.array(unique_days)
+    max_8h_values = np.array(max_8h_values)
+
+    MDA8=timeseries(unique_days,max_8h_values)
+    return MDA8
 
 def sza(lat, lon, time):
     from dp_chem import solar
