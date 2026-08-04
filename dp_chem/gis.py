@@ -253,7 +253,7 @@ class gis:
         if column is None:
             # Plot only geometry to avoid choropleth behavior
             gdf_plot = gdf_wgs[['geometry']]
-            kwargs.setdefault("color", "none")
+            # kwargs.setdefault("color", "none")
         else:
             gdf_plot = gdf_wgs
             kwargs.setdefault('legend',True)

@@ -2,8 +2,10 @@ import inspect
 import os
 from dp_chem import molecule
 import getpass
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 import math
+import numpy as np
 from dp_chem.units import units
 
 
@@ -21,6 +23,22 @@ def convert(value:float, unit:str, convert_to:str):
         raise ValueError(f"dp_chem.units could not convert {unit} to {convert_to}")
     
     return value * conversion_factor
+
+def dt64_to_dt(dt64:np.datetime64, tz=None):
+    dt = dt64.astype('M8[us]').item()
+    dt_utc = dt.replace(tzinfo=timezone.utc)
+    
+    if tz is None:
+        return dt_utc
+    else:    
+        if isinstance(tz,(timezone,ZoneInfo)):
+            dt_tz = dt_utc.astimezone(tz)
+        elif isinstance(tz,str):
+            dt_tz = dt_utc.astimezone(ZoneInfo(tz))
+        else:
+            raise TypeError(f"dt64_to_dt cannot accept {type(tz)} for tz. Use ZoneInfo or a string")
+        return dt_tz
+
         
 def save_fig(fig, fname=None, dpi=200, annotate=True, fontsize=8):
     """

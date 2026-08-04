@@ -7,7 +7,6 @@ from .sigfig import sigfig as sf
 from .uncertainvalue import uncertainvalue
 from .uncertainvalue import uncertainvalue as uv
 from .weakacid import weakacid
-from .stats import stats
 from .timeseries import timeseries
 from .correlation import correlation
 from .binning import binning
@@ -19,6 +18,7 @@ from .epa import epa
 #expose useful functions
 from .gentools import MW
 from .gentools import convert
+from .stats import stats
 
 #expose dynamic reload
 from .reload import reload

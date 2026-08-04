@@ -2,7 +2,7 @@ import re
 
 class units:
     unit_categories = {
-            'distance': ['m', 'ft', 'in', 'mi'],
+            'distance': ['m', 'ft', 'in', 'mi', 'NM'],
             'time': ['s', 'min', 'hour', 'hr', 'h', 'day', 'd'],
             'mass': ['kg', 'g', 'lb', 'oz'],
             'temperature': ['K', 'C', 'F'],
@@ -43,6 +43,7 @@ class units:
             'ft': 0.3048,     # foot to meter
             'in': 0.0254,     # inch to meter
             'mi': 1609.34,    # mile to meter
+            'NM': 1852,        # nautical mile to meter
             'min': 60,        # minute to second
             'h': 3600,        # hour to second
             'hr': 3600,       # hour to second
