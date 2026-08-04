@@ -253,14 +253,15 @@ class gis:
         if column is None:
             # Plot only geometry to avoid choropleth behavior
             gdf_plot = gdf_wgs[['geometry']]
-            kwargs.setdefault("color", "none")
+            # kwargs.setdefault("color", "none")
         else:
             gdf_plot = gdf_wgs
             kwargs.setdefault('legend',True)
+            kwargs.setdefault("cmap", "plasma")
         
         kwargs.setdefault("edgecolor", "black")
         kwargs.setdefault("linewidth", 1)
-        kwargs.setdefault("cmap", "plasma")
+        
 
         return gdf_plot.plot(ax=ax, transform=ccrs.PlateCarree(), column=column, **kwargs)
 

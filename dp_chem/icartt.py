@@ -64,8 +64,10 @@ def load(filepath):
         # Some people don't follow the icartt standard and instead give iso strings of the UTC timestamp. we handle that, but whine about it
 
         utc = timezone.utc
+
+
         try:
-            data['Time_Start'] = data.iloc[:, 0].apply(lambda x: utc.localize(start_date + timedelta(seconds=float(x))))
+            data['Time_Start'] = data.iloc[:, 0].apply(lambda x: (start_date + timedelta(seconds=float(x))).replace(tzinfo=utc))
         except:
             try:
                 data['Time_Start'] = data.iloc[:, 0].apply(lambda x: datetime.fromisoformat(x).replace(tzinfo=utc))

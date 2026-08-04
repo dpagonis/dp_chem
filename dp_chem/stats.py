@@ -58,7 +58,7 @@ def f_table(confidence, dof1, dof2):
 
     return upper_critical_value
 
-def f_test(s1,n1,s2,n2,confidence=95,show=True):
+def f_test(s1,n1,s2,n2,confidence=95.,show=True):
     
     if n1 < 3 or n2 < 3:
         raise ValueError("Insufficient replicates. Need three replicates to test. n1={n1}, n2={n2}")
@@ -102,7 +102,7 @@ def f_test(s1,n1,s2,n2,confidence=95,show=True):
 
     
 
-def t_test(uv1, uv2, confidence=95, show=True, show_Ftest=False):
+def t_test(uv1, uv2, confidence=95., show=True, show_Ftest=False):
     
     if not isinstance(uv1,uncertainvalue):
         try:
@@ -164,7 +164,7 @@ def t_test(uv1, uv2, confidence=95, show=True, show_Ftest=False):
 
     return H0, t_calc, t_tab
 
-def paired_t_test(l1,l2, confidence=95, show=True):
+def paired_t_test(l1,l2, confidence=95., show=True):
 
     try:
         l1=np.array(l1)
@@ -202,6 +202,8 @@ def paired_t_test(l1,l2, confidence=95, show=True):
         print(f"{'ACCEPT' if H0 else 'REJECT'} null hypothesis")
         print(conclude)
         print("")
+
+    return H0, t_calc, t_tab
 
 def stats():
     """
